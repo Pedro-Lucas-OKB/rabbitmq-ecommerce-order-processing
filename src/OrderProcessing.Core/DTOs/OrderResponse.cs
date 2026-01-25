@@ -1,7 +1,7 @@
 namespace OrderProcessing.Core.DTOs;
 
 public record OrderItemResponse(
-    ulong Id,
+    Guid Id,
     string ProductName,
     string ProductSku,
     int Quantity,
@@ -10,7 +10,7 @@ public record OrderItemResponse(
 );
 
 public record OrderResponse(
-    ulong Id,
+    Guid Id,
     string CustomerName,
     string CustomerEmail,
     decimal TotalAmount,

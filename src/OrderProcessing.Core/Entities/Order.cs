@@ -4,7 +4,7 @@ namespace OrderProcessing.Core.Entities;
 
 public class Order
 {
-    public ulong Id { get; init; }
+    public Guid Id { get; init; }
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerEmail { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
