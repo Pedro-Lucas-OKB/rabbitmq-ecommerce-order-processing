@@ -17,5 +17,8 @@ public class CreateOrderRequestValidator : AbstractValidator<CreateOrderRequest>
         
         RuleFor(order => order.Items)
             .NotEmpty().WithMessage("Order must contain at least one item.");
+        
+        RuleForEach(order => order.Items)
+            .SetValidator(new CreateOrderItemRequestValidator());       
     }
 }
