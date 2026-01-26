@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OrderProcessing.Infrastructure.Data;
+using OrderProcessing.Infrastructure.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,13 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Configuração do RabbitMQ
+builder.Services.Configure<RabbitMqSettings>(
+    builder.Configuration.GetSection("RabbitMQ"));
+
+// Registra o Publisher como Singleton (reutiliza conexão)
+builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
 var app = builder.Build();
 
