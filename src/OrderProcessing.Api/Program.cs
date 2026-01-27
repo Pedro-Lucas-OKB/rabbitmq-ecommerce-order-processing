@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using OrderProcessing.Api.Endpoints;
 using OrderProcessing.Core.Validators;
 using OrderProcessing.Infrastructure.Data;
@@ -10,7 +11,21 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "E-Commerce Order Processing API",
+        Version = "v1",
+        Description = "API para sistema de processamento de pedidos de e-commerce com RabbitMQ.",
+        Contact = new OpenApiContact
+        {
+            Name = "Pedro Lucas Dev",
+            Email = "pedrolucasep5100@gmail.com",
+            Url = new Uri("https://github.com/Pedro-Lucas-OKB")
+        },
+    });
+});
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

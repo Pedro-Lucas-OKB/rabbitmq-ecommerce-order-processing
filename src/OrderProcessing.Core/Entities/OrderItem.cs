@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace OrderProcessing.Core.Entities;
 
 public class OrderItem
@@ -10,5 +12,6 @@ public class OrderItem
     public decimal TotalPrice { get; set; }
     
     public Guid OrderId { get; init; }
+    [JsonIgnore]
     public Order? Order { get; set; }
 }
