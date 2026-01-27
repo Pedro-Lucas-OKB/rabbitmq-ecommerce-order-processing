@@ -1,4 +1,7 @@
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using OrderProcessing.Api.Endpoints;
+using OrderProcessing.Core.Validators;
 using OrderProcessing.Infrastructure.Data;
 using OrderProcessing.Infrastructure.Messaging;
 
@@ -19,6 +22,8 @@ builder.Services.Configure<RabbitMqSettings>(
 // Registra o Publisher como Singleton (reutiliza conexão)
 builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
+builder.Services.AddValidatorsFromAssemblyContaining<CreateOrderRequestValidator>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -27,6 +32,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.MapOrderEndpoints();
 
 app.UseHttpsRedirection();
 
