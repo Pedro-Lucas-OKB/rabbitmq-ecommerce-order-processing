@@ -56,10 +56,9 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
             };
             
             // Publica a mensagem
-            const string routingKey = "order.created";
             await _channel.BasicPublishAsync(
                 exchange: _settings.ExchangeName,
-                routingKey: routingKey,
+                routingKey: _settings.RoutingKey,
                 mandatory: false,
                 basicProperties: properties,
                 body: body,
@@ -69,7 +68,7 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
                 "Mensagem publicada no RabbitMQ. OrderId: {OrderId}, Exchange: {Exchange}, RoutingKey: {RoutingKey}",
                 order.Id, 
                 _settings.ExchangeName, 
-                routingKey);
+                _settings.RoutingKey);
         }
         catch (Exception e)
         {
