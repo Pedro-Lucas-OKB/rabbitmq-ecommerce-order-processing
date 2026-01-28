@@ -42,6 +42,12 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
                 autoDelete: false,
                 cancellationToken: cancellationToken);
             
+            await DeclareQueueAndBind(cancellationToken);
+            
+            _logger.LogInformation(
+                "Queue '{Queue}' vinculada ao Exchange '{Exchange}' com RoutingKey '{OrderCreatedRoutingKey}'",
+                _settings.PaymentQueueName, _settings.ExchangeName, _settings.OrderCreatedRoutingKey);
+            
             // Serializa o objeto para JSON
             var message = JsonSerializer.Serialize(order);
             var body = Encoding.UTF8.GetBytes(message);
@@ -58,17 +64,17 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
             // Publica a mensagem
             await _channel.BasicPublishAsync(
                 exchange: _settings.ExchangeName,
-                routingKey: _settings.RoutingKey,
+                routingKey: _settings.OrderCreatedRoutingKey,
                 mandatory: false,
                 basicProperties: properties,
                 body: body,
                 cancellationToken: cancellationToken);
             
             _logger.LogInformation(
-                "Mensagem publicada no RabbitMQ. OrderId: {OrderId}, Exchange: {Exchange}, RoutingKey: {RoutingKey}",
+                "Mensagem publicada no RabbitMQ. OrderId: {OrderId}, Exchange: {Exchange}, RoutingKey: {OrderCreatedRoutingKey}",
                 order.Id, 
                 _settings.ExchangeName, 
-                _settings.RoutingKey);
+                _settings.OrderCreatedRoutingKey);
         }
         catch (Exception e)
         {
@@ -120,5 +126,24 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
             _channel = null;
             _connection = null;
         }
+    }
+    
+    private async Task DeclareQueueAndBind(CancellationToken stoppingToken)
+    {
+        // Cria a fila
+        await _channel!.QueueDeclareAsync(
+            queue: _settings.PaymentQueueName,
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
+            arguments: null,
+            cancellationToken: stoppingToken);
+
+        // Linkando a fila ao exchange
+        await _channel.QueueBindAsync(
+            queue: _settings.PaymentQueueName,
+            exchange: _settings.ExchangeName,
+            routingKey: _settings.OrderCreatedRoutingKey,
+            cancellationToken: stoppingToken);
     }
 }
