@@ -124,7 +124,7 @@ public class Worker : BackgroundService
             await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
             
             // Simulando reserva do pedido (90% de chance de aprovar)
-            var reserved = ProcessInventoryReserved(order);
+            _ = ProcessInventoryReserved(order);
 
             // Salvando no banco
             order.UpdatedAt = DateTime.UtcNow;
@@ -189,7 +189,7 @@ public class Worker : BackgroundService
     
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("PaymentWorker encerrando...");
+        _logger.LogInformation("InventoryWorker encerrando...");
         
         _channel?.Dispose();
         _connection?.Dispose();
