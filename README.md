@@ -16,15 +16,39 @@ Este projeto implementa uma arquitetura de microsserviços para processamento de
 ## Arquitetura
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────────┐
-│   Cliente   │────►│     API     │────►│    RabbitMQ     │
-└─────────────┘     └─────────────┘     └────────┬────────┘
-                           │                     │
-                           ▼                     ▼
-                    ┌─────────────┐     ┌─────────────────┐
-                    │  PostgreSQL │◄────│  PaymentWorker  │
-                    └─────────────┘     └─────────────────┘
+┌─────────────┐     ┌─────────────┐     ┌──────────────────────────┐
+│   Cliente   │────►│     API     │────►│  order-created-exchange  │
+└─────────────┘     └─────────────┘     └────────────┬─────────────┘
+                           │                         │
+                           │            ┌────────────┴────────────┐
+                           │            │                         │
+                           │    routing key:              routing key:
+                           │    "order.created"           "payment.approved"
+                           │            │                         │
+                           │            ▼                         ▼
+                           │    ┌──────────────┐          ┌─────────────────┐
+                           │    │payment-queue │          │ inventory-queue │
+                           │    └──────┬───────┘          └────────┬────────┘
+                           │           │                           │
+                           │           ▼                           ▼
+                           │    ┌──────────────┐          ┌─────────────────┐
+                           │    │PaymentWorker │─────────►│ InventoryWorker │
+                           │    └──────┬───────┘ publica  └────────┬────────┘
+                           │           │         se aprovado       │
+                           ▼           ▼                           ▼
+                    ┌─────────────────────────────────────────────────┐
+                    │                   PostgreSQL                    │
+                    └─────────────────────────────────────────────────┘
 ```
+
+### Fluxo de Processamento
+
+1. **Cliente** cria pedido via API
+2. **API** salva no PostgreSQL e publica no RabbitMQ (`order.created`)
+3. **PaymentWorker** consome, processa pagamento (70% aprovado, 30% rejeitado)
+4. Se aprovado, publica na fila de estoque (`payment.approved`)
+5. **InventoryWorker** consome e processa estoque (90% reservado, 10% sem estoque)
+6. Status final: `Completed` ou `Failed`
 
 ## Stack Tecnológica
 
@@ -40,11 +64,12 @@ Este projeto implementa uma arquitetura de microsserviços para processamento de
 
 ```
 src/
-├── OrderProcessing.Api/           # API REST (Minimal APIs)
-├── OrderProcessing.Core/          # Domínio (Entities, DTOs, Enums)
-├── OrderProcessing.Infrastructure/# Persistência e Messaging
-└── OrderProcessing.Workers/       # Workers (em desenvolvimento)
-    └── PaymentWorker/
+├── OrderProcessing.Api/            # API REST (Minimal APIs)
+├── OrderProcessing.Core/           # Domínio (Entities, DTOs, Enums, Validators)
+├── OrderProcessing.Infrastructure/ # Persistência e Messaging
+└── OrderProcessing.Workers/
+    ├── PaymentWorker/              # Processa pagamentos
+    └── InventoryWorker/            # Processa estoque
 ```
 
 ## Executando o Projeto
@@ -71,10 +96,17 @@ Isso inicia:
 dotnet ef database update -p src/OrderProcessing.Infrastructure -s src/OrderProcessing.Api
 ```
 
-### 3. Rodar a API
+### 3. Rodar a API e Workers
 
 ```bash
+# Terminal 1 - API
 dotnet run --project src/OrderProcessing.Api
+
+# Terminal 2 - PaymentWorker
+dotnet run --project src/OrderProcessing.Workers/PaymentWorker
+
+# Terminal 3 - InventoryWorker
+dotnet run --project src/OrderProcessing.Workers/InventoryWorker
 ```
 
 ### 4. Acessar
@@ -96,8 +128,8 @@ dotnet run --project src/OrderProcessing.Api
 - [x] API REST com Minimal APIs
 - [x] Integração com PostgreSQL
 - [x] Publisher RabbitMQ
-- [ ] PaymentWorker (Consumer)
-- [ ] InventoryWorker
+- [x] PaymentWorker (Consumer)
+- [x] InventoryWorker
 - [ ] NotificationWorker
 - [ ] CI/CD com GitHub Actions
 - [ ] Testes automatizados
