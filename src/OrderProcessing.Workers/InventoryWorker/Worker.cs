@@ -8,7 +8,7 @@ using OrderProcessing.Infrastructure.Messaging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace PaymentWorker;
+namespace InventoryWorker;
 
 public class Worker : BackgroundService
 {
@@ -31,7 +31,7 @@ public class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("PaymentWorker iniciando...");
+        _logger.LogInformation("InventoryWorker iniciando...");
         
         await ConnectToRabbitMq(stoppingToken);
         
@@ -41,19 +41,11 @@ public class Worker : BackgroundService
             return;
         }
         
-        // Cria o exchange (idempotente)
-        await _channel.ExchangeDeclareAsync(
-            exchange: _settings.ExchangeName,
-            type: ExchangeType.Direct,
-            durable: true,
-            autoDelete: false,
-            cancellationToken: stoppingToken);
-        
-        await DeclareQueueAndBind(_settings.PaymentQueueName, _settings.OrderCreatedRoutingKey, stoppingToken);
+        await DeclareQueueAndBind(_settings.InventoryQueueName, _settings.PaymentApprovedRoutingKey, stoppingToken);
 
         _logger.LogInformation(
             "Queue '{Queue}' vinculada ao Exchange '{Exchange}' com RoutingKey '{OrderCreatedRoutingKey}'",
-            _settings.PaymentQueueName, _settings.ExchangeName, _settings.OrderCreatedRoutingKey);
+            _settings.InventoryQueueName, _settings.ExchangeName, _settings.PaymentApprovedRoutingKey);
         
         // Configurando a QoS para 1 mensagem por vez
         await _channel.BasicQosAsync(prefetchSize: 0, prefetchCount: 1, global: false, cancellationToken: stoppingToken);
@@ -64,11 +56,11 @@ public class Worker : BackgroundService
         {
             await ProcessMessageAsync(ea, stoppingToken);
         };
-        _logger.LogInformation("PaymentWorker aguardando mensagens...");
+        _logger.LogInformation("InventoryWorker aguardando mensagens...");
         
         // Realiza o consumo das mensagens
         await _channel.BasicConsumeAsync(
-            queue: _settings.PaymentQueueName,
+            queue: _settings.InventoryQueueName,
             autoAck: false,
             consumer: consumer,
             cancellationToken: stoppingToken);
@@ -127,17 +119,12 @@ public class Worker : BackgroundService
                 
                 return;
             }
-            
-            // Atualizando os status do pedido
-            order.PaymentStatus = EPaymentStatus.Processing;
-            order.UpdatedAt = DateTime.UtcNow;
-            await context.SaveChangesAsync(stoppingToken);
 
-            // Simulando processamento de pagamento
-            await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+            // Simulando processamento de estoque
+            await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
             
-            // Simulando aprovação do pagamento (70% de chance de aprovar)
-            var approved = ProcessPaymentApproval(order);
+            // Simulando reserva do pedido (90% de chance de aprovar)
+            var reserved = ProcessInventoryReserved(order);
 
             // Salvando no banco
             order.UpdatedAt = DateTime.UtcNow;
@@ -146,9 +133,7 @@ public class Worker : BackgroundService
             // Confirmando o processamento da mensagem
             await _channel!.BasicAckAsync(ea.DeliveryTag, false, stoppingToken);
             
-            if (approved) await PublishPaymentApprovedAsync(order, stoppingToken);
-            
-            _logger.LogInformation("Pagamento do pedido {OrderId} processado com sucesso.", order.Id);
+            _logger.LogInformation("Estoque do pedido {OrderId} processado com sucesso.", order.Id);
         }
         catch (Exception e)
         {
@@ -159,24 +144,24 @@ public class Worker : BackgroundService
         }
     }
 
-    private bool ProcessPaymentApproval(Order order)
+    private bool ProcessInventoryReserved(Order order)
     {
-        var approved = Random.Shared.Next(101) < 70;
+        var reserved = Random.Shared.Next(101) < 90;
 
-        if (approved)
+        if (reserved)
         {
-            order.PaymentStatus = EPaymentStatus.Approved;
-            order.OrderStatus = EOrderStatus.Processing;
-            _logger.LogInformation("Pagamento APROVADO para o pedido {OrderId}", order.Id);
+            order.InventoryStatus = EInventoryStatus.Reserved;
+            order.OrderStatus = EOrderStatus.Completed;
+            _logger.LogInformation("Estoque RESERVADO para o pedido {OrderId}", order.Id);
         }
         else
         {
-            order.PaymentStatus = EPaymentStatus.Rejected;
+            order.InventoryStatus = EInventoryStatus.OutOfStock;
             order.OrderStatus = EOrderStatus.Failed;
-            _logger.LogWarning("Pagamento REJEITADO para o pedido {OrderId}", order.Id);
+            _logger.LogWarning("SEM ESTOQUE para o pedido {OrderId}", order.Id);
         }
         
-        return approved;
+        return reserved;
     }
 
     private async Task ConnectToRabbitMq(CancellationToken cancellationToken)
@@ -210,38 +195,5 @@ public class Worker : BackgroundService
         _connection?.Dispose();
         
         await base.StopAsync(cancellationToken);
-    }
-
-    private async Task PublishPaymentApprovedAsync(Order order, CancellationToken stoppingToken)
-    {
-        _logger.LogInformation("Publicando mensagem de pagamento aprovado no RabbitMQ para a fila de estoque...");
-        var json = JsonSerializer.Serialize(order);
-        var body = Encoding.UTF8.GetBytes(json);
-        
-        _logger.LogDebug("Criando fila do estoque ({InventoryQueue})...", _settings.InventoryQueueName);
-        await DeclareQueueAndBind(_settings.InventoryQueueName, _settings.PaymentApprovedRoutingKey, stoppingToken);
-        
-        var properties = new BasicProperties
-        {
-            Persistent = true,
-            ContentType = "application/json",
-            MessageId = Guid.NewGuid().ToString(),
-            Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
-        };
-        
-        await _channel!.BasicPublishAsync(
-            exchange: _settings.ExchangeName,
-            routingKey: _settings.PaymentApprovedRoutingKey,
-            mandatory: false,
-            basicProperties: properties,
-            body: body,
-            cancellationToken: stoppingToken);
-        
-        _logger.LogInformation(
-            "Mensagem publicada no RabbitMQ. OrderId: {OrderId}, Exchange: {Exchange}, RoutingKey: {OrderCreatedRoutingKey}, Queue: {Queue}",
-            order.Id, 
-            _settings.ExchangeName, 
-            _settings.PaymentApprovedRoutingKey,
-            _settings.InventoryQueueName);
     }
 }
