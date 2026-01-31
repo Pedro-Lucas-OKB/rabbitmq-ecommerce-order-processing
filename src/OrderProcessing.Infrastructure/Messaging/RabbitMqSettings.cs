@@ -9,6 +9,8 @@ public class RabbitMqSettings
     public string ExchangeName { get; set; } = "order-created-exchange";
     public string PaymentQueueName { get; set; } = "payment-queue";
     public string InventoryQueueName { get; set; } = "inventory-queue";
+    public string NotificationQueueName { get; set; } = "notification-queue";
     public string OrderCreatedRoutingKey { get; set; } = "order.created";
     public string PaymentApprovedRoutingKey { get; set; } = "payment.approved";
+    public string InventoryReservedRoutingKey { get; set; } = "inventory.reserved";
 }

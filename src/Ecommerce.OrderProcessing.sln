@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaymentWorker", "OrderProce
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InventoryWorker", "OrderProcessing.Workers\InventoryWorker\InventoryWorker.csproj", "{24C8B899-23A2-410E-AB1A-42BF31C5407A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationWorker", "OrderProcessing.Workers\NotificationWorker\NotificationWorker.csproj", "{B875DFF6-70CA-43B6-BF4A-2E5762E4E111}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,9 +46,14 @@ Global
 		{24C8B899-23A2-410E-AB1A-42BF31C5407A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{24C8B899-23A2-410E-AB1A-42BF31C5407A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{24C8B899-23A2-410E-AB1A-42BF31C5407A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B875DFF6-70CA-43B6-BF4A-2E5762E4E111}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B875DFF6-70CA-43B6-BF4A-2E5762E4E111}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B875DFF6-70CA-43B6-BF4A-2E5762E4E111}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B875DFF6-70CA-43B6-BF4A-2E5762E4E111}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{291DCD55-9A75-4C94-9D6C-D9BD8AC3374B} = {58D8B7C6-47C5-4C02-B82B-1939C967278B}
 		{24C8B899-23A2-410E-AB1A-42BF31C5407A} = {58D8B7C6-47C5-4C02-B82B-1939C967278B}
+		{B875DFF6-70CA-43B6-BF4A-2E5762E4E111} = {58D8B7C6-47C5-4C02-B82B-1939C967278B}
 	EndGlobalSection
 EndGlobal

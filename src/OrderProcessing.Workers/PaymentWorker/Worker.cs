@@ -52,7 +52,7 @@ public class Worker : BackgroundService
         await DeclareQueueAndBind(_settings.PaymentQueueName, _settings.OrderCreatedRoutingKey, stoppingToken);
 
         _logger.LogInformation(
-            "Queue '{Queue}' vinculada ao Exchange '{Exchange}' com RoutingKey '{OrderCreatedRoutingKey}'",
+            "Queue '{Queue}' vinculada ao Exchange '{Exchange}' com RoutingKey '{RoutingKey}'",
             _settings.PaymentQueueName, _settings.ExchangeName, _settings.OrderCreatedRoutingKey);
         
         // Configurando a QoS para 1 mensagem por vez
@@ -238,7 +238,7 @@ public class Worker : BackgroundService
             cancellationToken: stoppingToken);
         
         _logger.LogInformation(
-            "Mensagem publicada no RabbitMQ. OrderId: {OrderId}, Exchange: {Exchange}, RoutingKey: {OrderCreatedRoutingKey}, Queue: {Queue}",
+            "Mensagem publicada no RabbitMQ. OrderId: {OrderId}, Exchange: {Exchange}, RoutingKey: {RoutingKey}, Queue: {Queue}",
             order.Id, 
             _settings.ExchangeName, 
             _settings.PaymentApprovedRoutingKey,

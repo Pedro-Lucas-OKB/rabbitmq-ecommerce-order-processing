@@ -19,26 +19,41 @@ Este projeto implementa uma arquitetura de microsserviços para processamento de
 ┌─────────────┐     ┌─────────────┐     ┌──────────────────────────┐
 │   Cliente   │────►│     API     │────►│  order-created-exchange  │
 └─────────────┘     └─────────────┘     └────────────┬─────────────┘
-                           │                         │
-                           │            ┌────────────┴────────────┐
-                           │            │                         │
-                           │    routing key:              routing key:
-                           │    "order.created"           "payment.approved"
-                           │            │                         │
-                           │            ▼                         ▼
-                           │    ┌──────────────┐          ┌─────────────────┐
-                           │    │payment-queue │          │ inventory-queue │
-                           │    └──────┬───────┘          └────────┬────────┘
-                           │           │                           │
-                           │           ▼                           ▼
-                           │    ┌──────────────┐          ┌─────────────────┐
-                           │    │PaymentWorker │─────────►│ InventoryWorker │
-                           │    └──────┬───────┘ publica  └────────┬────────┘
-                           │           │         se aprovado       │
-                           ▼           ▼                           ▼
-                    ┌─────────────────────────────────────────────────┐
-                    │                   PostgreSQL                    │
-                    └─────────────────────────────────────────────────┘
+                            │                         │
+                            │            ┌────────────┴────────────┐
+                            │            │                         │
+                            │    routing key:              routing key:
+                            │    "order.created"           "payment.approved"
+                            │            │                         │
+                            │            ▼                         ▼
+                            │    ┌──────────────┐          ┌─────────────────┐
+                            │    │payment-queue │          │ inventory-queue │
+                            │    └──────┬───────┘          └────────┬────────┘
+                            │           │                           │
+                            │           ▼                           ▼
+                            │    ┌──────────────┐          ┌─────────────────┐
+                            │    │PaymentWorker │─────────►│ InventoryWorker │
+                            │    └──────┬───────┘ publica  └────────┬────────┘
+                            │           │    se aprovado      publica │
+                            │           │                    se reservado
+                            ▼           ▼                           ▼
+                     ┌──────────────────────────────────────────────────────────┐
+                     │                   PostgreSQL                             │
+                     └──────────────────────────────────────────────────────────┘
+                                              │
+                                              │ routing key:
+                                              │ "inventory.reserved"
+                                              │
+                                              ▼
+                                   ┌─────────────────────┐
+                                   │ notification-queue  │
+                                   └──────────┬──────────┘
+                                              │
+                                              ▼
+                                   ┌─────────────────────┐
+                                   │ NotificationWorker  │
+                                   │   (envia e-mail)    │
+                                   └─────────────────────┘
 ```
 
 ### Fluxo de Processamento
@@ -48,7 +63,9 @@ Este projeto implementa uma arquitetura de microsserviços para processamento de
 3. **PaymentWorker** consome, processa pagamento (70% aprovado, 30% rejeitado)
 4. Se aprovado, publica na fila de estoque (`payment.approved`)
 5. **InventoryWorker** consome e processa estoque (90% reservado, 10% sem estoque)
-6. Status final: `Completed` ou `Failed`
+6. Se reservado, publica na fila de notificação (`inventory.reserved`)
+7. **NotificationWorker** consome e simula envio de e-mail (2s de delay)
+8. Status final: `Completed` ou `Failed`
 
 ## Stack Tecnológica
 
@@ -68,8 +85,9 @@ src/
 ├── OrderProcessing.Core/           # Domínio (Entities, DTOs, Enums, Validators)
 ├── OrderProcessing.Infrastructure/ # Persistência e Messaging
 └── OrderProcessing.Workers/
-    ├── PaymentWorker/              # Processa pagamentos
-    └── InventoryWorker/            # Processa estoque
+    ├── PaymentWorker/              # Processa pagamentos (70% aprovação)
+    ├── InventoryWorker/            # Processa estoque (90% reserva)
+    └── NotificationWorker/         # Envia notificações por e-mail
 ```
 
 ## Executando o Projeto
@@ -107,6 +125,9 @@ dotnet run --project src/OrderProcessing.Workers/PaymentWorker
 
 # Terminal 3 - InventoryWorker
 dotnet run --project src/OrderProcessing.Workers/InventoryWorker
+
+# Terminal 4 - NotificationWorker
+dotnet run --project src/OrderProcessing.Workers/NotificationWorker
 ```
 
 ### 4. Acessar
@@ -130,9 +151,17 @@ dotnet run --project src/OrderProcessing.Workers/InventoryWorker
 - [x] Publisher RabbitMQ
 - [x] PaymentWorker (Consumer)
 - [x] InventoryWorker
-- [ ] NotificationWorker
+- [x] NotificationWorker
 - [ ] CI/CD com GitHub Actions
 - [ ] Testes automatizados
+
+## Pipeline de Workers
+
+| Worker | Queue | Routing Key | Delay | Taxa Sucesso | Ação em Sucesso |
+|--------|-------|-------------|-------|--------------|-----------------|
+| **PaymentWorker** | `payment-queue` | `order.created` | 5s | 70% | Publica `payment.approved` |
+| **InventoryWorker** | `inventory-queue` | `payment.approved` | 3s | 90% | Publica `inventory.reserved` |
+| **NotificationWorker** | `notification-queue` | `inventory.reserved` | 2s | 100% | Log: "Email enviado" |
 
 ## Licença
 

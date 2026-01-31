@@ -8,7 +8,7 @@ using OrderProcessing.Infrastructure.Messaging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace InventoryWorker;
+namespace NotificationWorker;
 
 public class Worker : BackgroundService
 {
@@ -31,7 +31,7 @@ public class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("InventoryWorker iniciando...");
+        _logger.LogInformation("NotificationWorker iniciando...");
         
         await ConnectToRabbitMq(stoppingToken);
         
@@ -41,11 +41,11 @@ public class Worker : BackgroundService
             return;
         }
         
-        await DeclareQueueAndBind(_settings.InventoryQueueName, _settings.PaymentApprovedRoutingKey, stoppingToken);
+        await DeclareQueueAndBind(_settings.NotificationQueueName, _settings.InventoryReservedRoutingKey, stoppingToken);
 
         _logger.LogInformation(
             "Queue '{Queue}' vinculada ao Exchange '{Exchange}' com RoutingKey '{RoutingKey}'",
-            _settings.InventoryQueueName, _settings.ExchangeName, _settings.PaymentApprovedRoutingKey);
+            _settings.NotificationQueueName, _settings.ExchangeName, _settings.InventoryReservedRoutingKey);
         
         // Configurando a QoS para 1 mensagem por vez
         await _channel.BasicQosAsync(prefetchSize: 0, prefetchCount: 1, global: false, cancellationToken: stoppingToken);
@@ -56,11 +56,11 @@ public class Worker : BackgroundService
         {
             await ProcessMessageAsync(ea, stoppingToken);
         };
-        _logger.LogInformation("InventoryWorker aguardando mensagens...");
+        _logger.LogInformation("NotificationWorker aguardando mensagens...");
         
         // Realiza o consumo das mensagens
         await _channel.BasicConsumeAsync(
-            queue: _settings.InventoryQueueName,
+            queue: _settings.NotificationQueueName,
             autoAck: false,
             consumer: consumer,
             cancellationToken: stoppingToken);
@@ -120,22 +120,16 @@ public class Worker : BackgroundService
                 return;
             }
 
-            // Simulando processamento de estoque
-            await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
+            // Simulando envio de e-mail
+            _logger.LogInformation("Enviando notificação para email o {CustomerEmail} referente ao pedido {OrderId}", order.CustomerEmail, order.Id);
+            await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
             
-            // Simulando reserva do pedido (90% de chance de aprovar)
-            var reserved = ProcessInventoryReserved(order);
-
-            // Salvando no banco
-            order.UpdatedAt = DateTime.UtcNow;
-            await context.SaveChangesAsync(stoppingToken);
+            _logger.LogInformation("Notificação via e-mail ENVIADA para o cliente {CustomerEmail}. Pedido {OrderId} - {status}", order.CustomerEmail, order.Id, order.OrderStatus.ToString());
             
             // Confirmando o processamento da mensagem
             await _channel!.BasicAckAsync(ea.DeliveryTag, false, stoppingToken);
             
-            if (reserved) await PublishInventoryReservedAsync(order, stoppingToken);
-            
-            _logger.LogInformation("Estoque do pedido {OrderId} processado com sucesso.", order.Id);
+            _logger.LogInformation("Notificação do pedido {OrderId} processada com sucesso.", order.Id);
         }
         catch (Exception e)
         {
@@ -144,26 +138,6 @@ public class Worker : BackgroundService
             // NACK - rejeita a mensagem (requeue: true para tentar novamente)
             await _channel!.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true, stoppingToken);
         }
-    }
-
-    private bool ProcessInventoryReserved(Order order)
-    {
-        var reserved = Random.Shared.Next(101) < 90;
-
-        if (reserved)
-        {
-            order.InventoryStatus = EInventoryStatus.Reserved;
-            order.OrderStatus = EOrderStatus.Completed;
-            _logger.LogInformation("Estoque RESERVADO para o pedido {OrderId}", order.Id);
-        }
-        else
-        {
-            order.InventoryStatus = EInventoryStatus.OutOfStock;
-            order.OrderStatus = EOrderStatus.Failed;
-            _logger.LogWarning("SEM ESTOQUE para o pedido {OrderId}", order.Id);
-        }
-        
-        return reserved;
     }
 
     private async Task ConnectToRabbitMq(CancellationToken cancellationToken)
@@ -191,44 +165,11 @@ public class Worker : BackgroundService
     
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("InventoryWorker encerrando...");
+        _logger.LogInformation("NotificationWorker encerrando...");
         
         _channel?.Dispose();
         _connection?.Dispose();
         
         await base.StopAsync(cancellationToken);
-    }
-    
-    private async Task PublishInventoryReservedAsync(Order order, CancellationToken stoppingToken)
-    {
-        _logger.LogInformation("Publicando mensagem de estoque reservado no RabbitMQ para a fila de notificação...");
-        var json = JsonSerializer.Serialize(order);
-        var body = Encoding.UTF8.GetBytes(json);
-        
-        _logger.LogDebug("Criando fila de notificação ({NotificationQueue})...", _settings.NotificationQueueName);
-        await DeclareQueueAndBind(_settings.NotificationQueueName, _settings.InventoryReservedRoutingKey, stoppingToken);
-        
-        var properties = new BasicProperties
-        {
-            Persistent = true,
-            ContentType = "application/json",
-            MessageId = Guid.NewGuid().ToString(),
-            Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
-        };
-        
-        await _channel!.BasicPublishAsync(
-            exchange: _settings.ExchangeName,
-            routingKey: _settings.InventoryReservedRoutingKey,
-            mandatory: false,
-            basicProperties: properties,
-            body: body,
-            cancellationToken: stoppingToken);
-        
-        _logger.LogInformation(
-            "Mensagem publicada no RabbitMQ. OrderId: {OrderId}, Exchange: {Exchange}, RoutingKey: {RoutingKey}, Queue: {Queue}",
-            order.Id, 
-            _settings.ExchangeName, 
-            _settings.InventoryReservedRoutingKey,
-            _settings.NotificationQueueName);
     }
 }
