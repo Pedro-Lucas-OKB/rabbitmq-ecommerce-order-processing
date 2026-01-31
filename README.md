@@ -132,7 +132,7 @@ dotnet run --project src/OrderProcessing.Workers/NotificationWorker
 
 ### 4. Acessar
 
-- **Swagger:** http://localhost:5000/swagger
+- **Swagger:** http://localhost:5057/swagger
 - **RabbitMQ Management:** http://localhost:15672 (admin/admin123)
 - **PgAdmin:** http://localhost:5050 (admin@ecommerce.com/admin123)
 
