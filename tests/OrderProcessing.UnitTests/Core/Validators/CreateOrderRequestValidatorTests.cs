@@ -3,12 +3,19 @@ using FluentAssertions.Equivalency;
 using OrderProcessing.Core.DTOs;
 using OrderProcessing.Core.Entities;
 using OrderProcessing.Core.Validators;
+using Xunit.Abstractions;
 
 namespace OrderProcessing.UnitTests.Core.Validators;
 
 public class CreateOrderRequestValidatorTests
 {
     private readonly CreateOrderRequestValidator _validator = new();
+    private readonly ITestOutputHelper _output;
+
+    public CreateOrderRequestValidatorTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
     
     [Fact]
     public void CreateOrderRequestValidator_WithValidData_ShouldNotThrowException()
@@ -24,13 +31,22 @@ public class CreateOrderRequestValidatorTests
             }
         );
         
+        _output.WriteLine($"[LOG] Teste iniciado com CustomerName: '{request.CustomerName}'");
+        _output.WriteLine($"[LOG] Email: '{request.CustomerEmail}'");
+        _output.WriteLine($"[LOG] Total de itens: {request.Items.Count}");
+        
         // Act
         var result = _validator.Validate(request);
+        
+        _output.WriteLine($"[LOG] Resultado da validação: IsValid = {result.IsValid}");
+        _output.WriteLine($"[LOG] Erros encontrados: {result.Errors.Count}");
         
         // Assert
         result.Should().NotBeNull();
         result.IsValid.Should().BeTrue();
-        result.Errors.Should().BeEmpty();       
+        result.Errors.Should().BeEmpty();
+        
+        _output.WriteLine("[LOG] ✅ Teste passou com sucesso!");
     }
     
     [Fact]
@@ -47,12 +63,27 @@ public class CreateOrderRequestValidatorTests
             }
         );
         
+        _output.WriteLine($"[LOG] Testando CustomerName vazio (tamanho: {request.CustomerName.Length})");
+        
         // Act
         var result = _validator.Validate(request);
         
+        _output.WriteLine($"[LOG] IsValid: {result.IsValid}");
+        
+        if (!result.IsValid)
+        {
+            _output.WriteLine("[LOG] Erros de validação:");
+            foreach (var error in result.Errors)
+            {
+                _output.WriteLine($"  - {error.PropertyName}: {error.ErrorMessage}");
+            }
+        }
+        
         // Assert
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error => error.PropertyName == nameof(CreateOrderRequest.CustomerName));       
+        result.Errors.Should().Contain(error => error.PropertyName == nameof(CreateOrderRequest.CustomerName));
+        
+        _output.WriteLine("[LOG] ✅ Teste passou - Nome vazio corretamente rejeitado!");
     }
     
     [Theory]
@@ -73,12 +104,18 @@ public class CreateOrderRequestValidatorTests
             }
         );
         
+        _output.WriteLine($"[LOG] Testando email inválido: '{email}'");
+        
         // Act
         var result = _validator.Validate(request);
         
+        _output.WriteLine($"[LOG] Resultado: IsValid={result.IsValid}, Erros={result.Errors.Count}");
+        
         // Assert
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error => error.PropertyName == nameof(CreateOrderRequest.CustomerEmail));       
+        result.Errors.Should().Contain(error => error.PropertyName == nameof(CreateOrderRequest.CustomerEmail));
+        
+        _output.WriteLine($"[LOG] ✅ Email '{email}' corretamente rejeitado");
     }
     
     [Fact]
