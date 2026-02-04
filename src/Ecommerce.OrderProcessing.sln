@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationWorker", "Order
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderProcessing.UnitTests", "..\tests\OrderProcessing.UnitTests\OrderProcessing.UnitTests.csproj", "{D8ACDC02-827F-49C1-8606-CD5845B1F9F3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderProcessing.IntegrationTests", "..\tests\OrderProcessing.IntegrationTests\OrderProcessing.IntegrationTests.csproj", "{6B95FA9B-135C-495F-B5F8-74391B749AF0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,6 +58,10 @@ Global
 		{D8ACDC02-827F-49C1-8606-CD5845B1F9F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D8ACDC02-827F-49C1-8606-CD5845B1F9F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D8ACDC02-827F-49C1-8606-CD5845B1F9F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B95FA9B-135C-495F-B5F8-74391B749AF0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B95FA9B-135C-495F-B5F8-74391B749AF0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B95FA9B-135C-495F-B5F8-74391B749AF0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B95FA9B-135C-495F-B5F8-74391B749AF0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{291DCD55-9A75-4C94-9D6C-D9BD8AC3374B} = {58D8B7C6-47C5-4C02-B82B-1939C967278B}
