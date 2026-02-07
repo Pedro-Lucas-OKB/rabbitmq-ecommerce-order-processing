@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using FluentValidation;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using OrderProcessing.Api.Endpoints;
@@ -25,6 +27,11 @@ builder.Services.AddSwaggerGen(options =>
             Url = new Uri("https://github.com/Pedro-Lucas-OKB")
         },
     });
+});
+
+builder.Services.Configure<JsonOptions>(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
