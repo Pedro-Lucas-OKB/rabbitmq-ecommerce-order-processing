@@ -76,18 +76,26 @@ Este projeto implementa uma arquitetura de microsserviços para processamento de
 - **RabbitMQ** - Message Broker
 - **Docker & Docker Compose** - Containerização
 - **FluentValidation** - Validação de requests
+- **xUnit** - Framework de testes
+- **Testcontainers** - Containers Docker para testes de integração
+- **FluentAssertions** - Asserções expressivas nos testes
 
 ## Estrutura do Projeto
 
 ```
 src/
 ├── OrderProcessing.Api/            # API REST (Minimal APIs)
-├── OrderProcessing.Core/           # Domínio (Entities, DTOs, Enums, Validators)
-├── OrderProcessing.Infrastructure/ # Persistência e Messaging
+├── OrderProcessing.Core/           # Dominio (Entities, DTOs, Enums, Validators)
+├── OrderProcessing.Infrastructure/ # Persistencia e Messaging
 └── OrderProcessing.Workers/
-    ├── PaymentWorker/              # Processa pagamentos (70% aprovação)
+    ├── PaymentWorker/              # Processa pagamentos (70% aprovacao)
     ├── InventoryWorker/            # Processa estoque (90% reserva)
-    └── NotificationWorker/         # Envia notificações por e-mail
+    └── NotificationWorker/         # Envia notificacoes por e-mail
+
+tests/
+├── OrderProcessing.UnitTests/          # Testes unitarios (validators, etc.)
+└── OrderProcessing.IntegrationTests/   # Testes de integracao com Testcontainers
+    └── Fixtures/                       # IntegrationTestFixture e ApiClient
 ```
 
 ## Executando o Projeto
@@ -136,6 +144,42 @@ dotnet run --project src/OrderProcessing.Workers/NotificationWorker
 - **RabbitMQ Management:** http://localhost:15672 (admin/admin123)
 - **PgAdmin:** http://localhost:5050 (admin@ecommerce.com/admin123)
 
+## Testes
+
+O projeto inclui testes unitarios e de integracao.
+
+### Executar todos os testes
+
+```bash
+dotnet test
+```
+
+### Testes Unitarios
+
+Localizados em `tests/OrderProcessing.UnitTests/`. Testam componentes isolados como validators.
+
+```bash
+dotnet test tests/OrderProcessing.UnitTests
+```
+
+### Testes de Integracao
+
+Localizados em `tests/OrderProcessing.IntegrationTests/`. Usam **Testcontainers** para subir containers Docker reais (PostgreSQL e RabbitMQ) durante os testes.
+
+```bash
+dotnet test tests/OrderProcessing.IntegrationTests
+```
+
+**Requisitos:** Docker deve estar rodando para os testes de integracao.
+
+**Como funciona:**
+1. O `IntegrationTestFixture` inicia containers PostgreSQL e RabbitMQ
+2. Cria uma instancia da API em memoria via `WebApplicationFactory`
+3. Substitui as configuracoes reais pelas dos containers de teste
+4. Aplica migrations do EF Core no banco de teste
+5. Executa os testes usando um `HttpClient` pre-configurado
+6. Limpa todos os recursos apos os testes
+
 ## Endpoints
 
 | Método | Rota | Descrição |
@@ -147,13 +191,14 @@ dotnet run --project src/OrderProcessing.Workers/NotificationWorker
 ## Status do Projeto
 
 - [x] API REST com Minimal APIs
-- [x] Integração com PostgreSQL
+- [x] Integracao com PostgreSQL
 - [x] Publisher RabbitMQ
 - [x] PaymentWorker (Consumer)
 - [x] InventoryWorker
 - [x] NotificationWorker
+- [x] Testes unitarios (validators)
+- [x] Testes de integracao com Testcontainers
 - [ ] CI/CD com GitHub Actions
-- [ ] Testes automatizados
 
 ## Pipeline de Workers
 
