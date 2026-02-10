@@ -1,0 +1,44 @@
+---
+config:
+  theme: redux-dark-color
+---
+
+sequenceDiagram
+    actor Cliente
+    participant API
+    participant DB@{"type": "database"} as PostgreSQL
+    participant RMQ@{"type": "queue"} as RabbitMQ
+    participant PW as PaymentWorker
+    participant IW as InventoryWorker
+    participant NW as NotificationWorker
+
+    
+    Cliente->>API: POST /api/orders
+    activate API
+
+    API->>DB: Salvar pedido
+    activate DB
+    API-)RMQ: order.created
+    activate RMQ
+    API-->>Cliente: 201 Created
+    deactivate API
+    
+    RMQ-)PW: order.created
+    activate PW
+    PW-->>DB: Status: PaymentApproved
+    PW--)RMQ: payment.approved
+    deactivate PW
+
+    RMQ-)IW: payment.approved
+    activate IW
+    IW-->>DB: Status: InventoryReserved & Order Completed
+    deactivate DB
+    
+    IW--)RMQ: inventory.reserved
+    deactivate IW
+
+    RMQ-)NW: inventory.reserved
+    deactivate RMQ
+    activate NW
+    NW-->>Cliente: Notifica via e-mail
+    deactivate NW

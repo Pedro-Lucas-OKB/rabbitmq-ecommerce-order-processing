@@ -1,0 +1,53 @@
+---
+config:
+  theme: redux-dark-color
+---
+sequenceDiagram
+    autonumber
+    actor Cliente
+    participant API as OrderProcessing.Api
+    participant DB as PostgreSQL
+    participant RMQ as RabbitMQ
+    participant PW as PaymentWorker
+    participant IW as InventoryWorker
+    participant NW as NotificationWorker
+    %% Criação do Pedido
+    Cliente->>+API: POST /api/orders
+    API->>API: Validar request (FluentValidation)
+    API->>+DB: Salvar Order (Status: Pending)
+    DB-->>-API: Order salvo
+    API->>+RMQ: Publicar "order.created"
+    RMQ-->>-API: Confirmação
+    API-->>-Cliente: 201 Created + Order
+    %% Processamento do Pagamento
+    RMQ->>+PW: Consumir "order.created"
+    PW->>PW: Processar pagamento (70% sucesso)
+    alt Pagamento Aprovado
+        PW->>+DB: Atualizar Status: PaymentApproved
+        DB-->>-PW: OK
+        PW->>+RMQ: Publicar "payment.approved"
+        RMQ-->>-PW: Confirmação
+    else Pagamento Recusado
+        PW->>+DB: Atualizar Status: PaymentFailed
+        DB-->>-PW: OK
+    end
+    PW-->>-RMQ: ACK
+    %% Reserva de Inventário
+    RMQ->>+IW: Consumir "payment.approved"
+    IW->>IW: Reservar estoque (90% sucesso)
+    alt Estoque Reservado
+        IW->>+DB: Atualizar Status: InventoryReserved
+        DB-->>-IW: OK
+        IW->>+RMQ: Publicar "inventory.reserved"
+        RMQ-->>-IW: Confirmação
+    else Sem Estoque
+        IW->>+DB: Atualizar Status: InventoryFailed
+        DB-->>-IW: OK
+    end
+    IW-->>-RMQ: ACK
+    %% Notificação
+    RMQ->>+NW: Consumir "inventory.reserved"
+    NW->>NW: Enviar email (simulado)
+    NW->>+DB: Atualizar Status: Completed
+    DB-->>-NW: OK
+    NW-->>-RMQ: ACK

@@ -13,54 +13,15 @@ Este projeto implementa uma arquitetura de microsserviços para processamento de
 - Entity Framework Core com PostgreSQL
 - CI/CD com GitHub Actions (em breve)
 
-## Arquitetura
-
-```
-┌─────────────┐     ┌─────────────┐     ┌──────────────────────────┐
-│   Cliente   │────►│     API     │────►│  order-created-exchange  │
-└─────────────┘     └─────────────┘     └────────────┬─────────────┘
-                            │                         │
-                            │            ┌────────────┴────────────┐
-                            │            │                         │
-                            │    routing key:              routing key:
-                            │    "order.created"           "payment.approved"
-                            │            │                         │
-                            │            ▼                         ▼
-                            │    ┌──────────────┐          ┌─────────────────┐
-                            │    │payment-queue │          │ inventory-queue │
-                            │    └──────┬───────┘          └────────┬────────┘
-                            │           │                           │
-                            │           ▼                           ▼
-                            │    ┌──────────────┐          ┌─────────────────┐
-                            │    │PaymentWorker │─────────►│ InventoryWorker │
-                            │    └──────┬───────┘ publica  └────────┬────────┘
-                            │           │    se aprovado      publica │
-                            │           │                    se reservado
-                            ▼           ▼                           ▼
-                     ┌──────────────────────────────────────────────────────────┐
-                     │                   PostgreSQL                             │
-                     └──────────────────────────────────────────────────────────┘
-                                              │
-                                              │ routing key:
-                                              │ "inventory.reserved"
-                                              │
-                                              ▼
-                                   ┌─────────────────────┐
-                                   │ notification-queue  │
-                                   └──────────┬──────────┘
-                                              │
-                                              ▼
-                                   ┌─────────────────────┐
-                                   │ NotificationWorker  │
-                                   │   (envia e-mail)    │
-                                   └─────────────────────┘
-```
+## Arquitetura (Diagrama de Sequência)
+![Diagrama de Sequência - Criação de Pedido](docs/Diagrama_de_Sequencia_Create_Order.png)
 
 ### Fluxo de Processamento
 
 1. **Cliente** cria pedido via API
 2. **API** salva no PostgreSQL e publica no RabbitMQ (`order.created`)
-3. **PaymentWorker** consome, processa pagamento (70% aprovado, 30% rejeitado)
+3. **PaymentWorker** consome, processa 
+4. pagamento (70% aprovado, 30% rejeitado)
 4. Se aprovado, publica na fila de estoque (`payment.approved`)
 5. **InventoryWorker** consome e processa estoque (90% reservado, 10% sem estoque)
 6. Se reservado, publica na fila de notificação (`inventory.reserved`)
