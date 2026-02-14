@@ -1,0 +1,94 @@
+name: Continuous Integration (CI)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request: 
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Copiando código do repositório para a VM
+      - name: Checkout Code
+        uses: actions/checkout@v6
+        
+      # Configurando o .NET
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+        
+      # Cache de pacotes NuGet para acelerar builds futuros
+      # Chave baseada no hash dos arquivos .csproj
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+         path: ~/.nuget/packages
+         key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+         restore-keys: |
+           ${{ runner.os }}-nuget-
+           
+      - name: Restore dependencies
+        run: dotnet restore src/Ecommerce.OrderProcessing.sln
+        
+      - name: Build
+        run: dotnet build src/Ecommerce.OrderProcessing.sln --no-restore
+        
+  # Job para executar testes de unidade
+  unit-tests: 
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore src/Ecommerce.OrderProcessing.sln
+        
+      # Executa apenas os testes unitários
+      - name: Run unit tests
+        run: dotnet test tests/OrderProcessing.UnitTests --no-restore --verbosity normal
+  
+  # Job para executar testes de integração
+  integration-tests:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore src/Ecommerce.OrderProcessing.sln
+        
+      # Executa testes de integração
+      # Testcontainers vai subir PostgreSQL e RabbitMQ automaticamente
+      - name: Run integration tests
+        run: dotnet test tests/OrderProcessing.IntegrationTests --no-restore --verbosity normal

@@ -159,7 +159,7 @@ dotnet test tests/OrderProcessing.IntegrationTests
 - [x] NotificationWorker
 - [x] Testes unitarios (validators)
 - [x] Testes de integracao com Testcontainers
-- [ ] CI/CD com GitHub Actions
+- [x] CI/CD com GitHub Actions
 
 ## Pipeline de Workers
 
