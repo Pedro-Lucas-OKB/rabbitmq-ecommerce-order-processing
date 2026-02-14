@@ -1,4 +1,5 @@
 # E-commerce Order Processing
+[![Continuous Integration (CI)](https://github.com/Pedro-Lucas-OKB/rabbitmq-ecommerce-order-processing/actions/workflows/ci.yml/badge.svg)](https://github.com/Pedro-Lucas-OKB/rabbitmq-ecommerce-order-processing/actions/workflows/ci.yml)
 
 Sistema de processamento assíncrono de pedidos de e-commerce utilizando **RabbitMQ** e **.NET 8**.
 
