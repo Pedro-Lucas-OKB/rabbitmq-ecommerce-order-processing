@@ -1,18 +1,19 @@
 # E-commerce Order Processing
 [![Continuous Integration (CI)](https://github.com/Pedro-Lucas-OKB/rabbitmq-ecommerce-order-processing/actions/workflows/ci.yml/badge.svg)](https://github.com/Pedro-Lucas-OKB/rabbitmq-ecommerce-order-processing/actions/workflows/ci.yml)
 
-Sistema de processamento assíncrono de pedidos de e-commerce utilizando **RabbitMQ** e **.NET 8**.
+Sistema de processamento assíncrono de pedidos de e-commerce utilizando **MassTransit** com **RabbitMQ** e **.NET 8**.
 
 ## Sobre o Projeto
 
-Este projeto implementa uma arquitetura de microsserviços para processamento de pedidos, onde diferentes partes do fluxo (pagamento, estoque, notificação) são processadas de forma **assíncrona** e **independente** através do RabbitMQ.
+Este projeto implementa uma arquitetura de microsserviços para processamento de pedidos, onde diferentes partes do fluxo (pagamento, estoque, notificação) são processadas de forma **assíncrona** e **independente** através do MassTransit/RabbitMQ.
 
 ### Objetivos de Aprendizado
 
+- **MassTransit 7.x** - Abstração sobre message brokers
 - RabbitMQ (exchanges, queues, routing, acknowledgments)
-- Processamento assíncrono com Workers
+- Processamento assíncrono com Workers e Consumers
 - Entity Framework Core com PostgreSQL
-- CI/CD com GitHub Actions (em breve)
+- CI/CD com GitHub Actions
 
 ## Arquitetura (Diagrama de Sequência)
 ![Diagrama de Sequência - Criação de Pedido](docs/Diagrama_de_Sequencia_Create_Order.png)
@@ -33,6 +34,7 @@ Este projeto implementa uma arquitetura de microsserviços para processamento de
 
 - **.NET 8** - Framework principal
 - **ASP.NET Core Minimal APIs** - API REST
+- **MassTransit 7.3.1** - Abstração sobre RabbitMQ (pub/sub simplificado)
 - **Entity Framework Core** - ORM
 - **PostgreSQL** - Banco de dados
 - **RabbitMQ** - Message Broker
@@ -42,17 +44,83 @@ Este projeto implementa uma arquitetura de microsserviços para processamento de
 - **Testcontainers** - Containers Docker para testes de integração
 - **FluentAssertions** - Asserções expressivas nos testes
 
+## MassTransit vs RabbitMQ.Client
+
+Este projeto usa **MassTransit** como abstração sobre o RabbitMQ. Principais diferenças:
+
+| Aspecto | RabbitMQ.Client (direto) | MassTransit |
+|---------|--------------------------|-------------|
+| **Setup** | Manual (exchanges, queues, bindings) | Automático via convenções |
+| **Consumers** | Loop manual + `BasicConsume` | Interface `IConsumer<T>` |
+| **Serialização** | Manual (JSON/bytes) | Automática |
+| **Retry/Fault** | Implementação própria | Built-in policies |
+| **DI** | Manual | Integrado com `IServiceCollection` |
+
+### Mensagens
+
+As mensagens são **enxutas** (apenas IDs). Os consumers buscam dados no banco:
+
+```csharp
+// Mensagem simples
+public record OrderCreated { public Guid OrderId { get; init; } }
+
+// Consumer busca dados completos
+public class OrderCreatedConsumer : IConsumer<OrderCreated>
+{
+    public async Task Consume(ConsumeContext<OrderCreated> context)
+    {
+        var order = await _dbContext.Orders.FindAsync(context.Message.OrderId);
+        // Processar...
+    }
+}
+```
+
+### Configuração MassTransit
+
+```csharp
+// Program.cs da API
+builder.Services.AddMassTransit(config =>
+{
+    config.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("localhost", "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+    });
+});
+builder.Services.AddMassTransitHostedService(true);
+
+// Program.cs do Worker
+builder.Services.AddMassTransit(config =>
+{
+    config.AddConsumer<OrderCreatedConsumer>();
+    config.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("localhost");
+        cfg.ReceiveEndpoint("payment-queue", e =>
+        {
+            e.ConfigureConsumer<OrderCreatedConsumer>(context);
+        });
+    });
+});
+```
+
 ## Estrutura do Projeto
 
 ```
 src/
 ├── OrderProcessing.Api/            # API REST (Minimal APIs)
-├── OrderProcessing.Core/           # Dominio (Entities, DTOs, Enums, Validators)
-├── OrderProcessing.Infrastructure/ # Persistencia e Messaging
+├── OrderProcessing.Core/           # Dominio (Entities, DTOs, Enums, Validators, Messages)
+├── OrderProcessing.Infrastructure/ # Persistencia (EF Core)
 └── OrderProcessing.Workers/
     ├── PaymentWorker/              # Processa pagamentos (70% aprovacao)
+    │   └── Consumers/              # OrderCreatedConsumer
     ├── InventoryWorker/            # Processa estoque (90% reserva)
+    │   └── Consumers/              # PaymentApprovedConsumer
     └── NotificationWorker/         # Envia notificacoes por e-mail
+        └── Consumers/              # InventoryReservedConsumer
 
 tests/
 ├── OrderProcessing.UnitTests/          # Testes unitarios (validators, etc.)
@@ -135,9 +203,9 @@ dotnet test tests/OrderProcessing.IntegrationTests
 **Requisitos:** Docker deve estar rodando para os testes de integracao.
 
 **Como funciona:**
-1. O `IntegrationTestFixture` inicia containers PostgreSQL e RabbitMQ
+1. O `IntegrationTestFixture` inicia container PostgreSQL via Testcontainers
 2. Cria uma instancia da API em memoria via `WebApplicationFactory`
-3. Substitui as configuracoes reais pelas dos containers de teste
+3. Substitui MassTransit/RabbitMQ por MassTransit InMemory
 4. Aplica migrations do EF Core no banco de teste
 5. Executa os testes usando um `HttpClient` pre-configurado
 6. Limpa todos os recursos apos os testes
@@ -162,13 +230,19 @@ dotnet test tests/OrderProcessing.IntegrationTests
 - [x] Testes de integracao com Testcontainers
 - [x] CI/CD com GitHub Actions
 
-## Pipeline de Workers
+## Pipeline de Workers (MassTransit)
 
-| Worker | Queue | Routing Key | Delay | Taxa Sucesso | Ação em Sucesso |
-|--------|-------|-------------|-------|--------------|-----------------|
-| **PaymentWorker** | `payment-queue` | `order.created` | 5s | 70% | Publica `payment.approved` |
-| **InventoryWorker** | `inventory-queue` | `payment.approved` | 3s | 90% | Publica `inventory.reserved` |
-| **NotificationWorker** | `notification-queue` | `inventory.reserved` | 2s | 100% | Log: "Email enviado" |
+| Worker | Queue | Mensagem Consumida | Delay | Taxa Sucesso | Publica |
+|--------|-------|-------------------|-------|--------------|---------|
+| **PaymentWorker** | `payment-queue` | `OrderCreated` | 5s | 70% | `PaymentApproved` |
+| **InventoryWorker** | `inventory-queue` | `PaymentApproved` | 3s | 90% | `InventoryReserved` |
+| **NotificationWorker** | `notification-queue` | `InventoryReserved` | 2s | 100% | - |
+
+### Fluxo de Mensagens
+
+```
+API ─► OrderCreated ─► PaymentWorker ─► PaymentApproved ─► InventoryWorker ─► InventoryReserved ─► NotificationWorker
+```
 
 ## Licença
 
