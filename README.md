@@ -3,6 +3,10 @@
 
 Sistema de processamento assíncrono de pedidos de e-commerce utilizando **RabbitMQ** e **.NET 8**.
 
+> **Branches disponíveis:**
+> - `main` - Implementação com **RabbitMQ.Client** (acesso direto ao RabbitMQ)
+> - [`feature/masstransit`](https://github.com/Pedro-Lucas-OKB/rabbitmq-ecommerce-order-processing/tree/feature/masstransit) - Implementação com **MassTransit 7.x** (abstração sobre RabbitMQ)
+
 ## Sobre o Projeto
 
 Este projeto implementa uma arquitetura de microsserviços para processamento de pedidos, onde diferentes partes do fluxo (pagamento, estoque, notificação) são processadas de forma **assíncrona** e **independente** através do RabbitMQ.
