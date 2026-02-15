@@ -1,12 +1,12 @@
 using System.Text.Json.Serialization;
 using FluentValidation;
+using MassTransit;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using OrderProcessing.Api.Endpoints;
 using OrderProcessing.Core.Validators;
 using OrderProcessing.Infrastructure.Data;
-using OrderProcessing.Infrastructure.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +19,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "E-Commerce Order Processing API",
         Version = "v1",
-        Description = "API para sistema de processamento de pedidos de e-commerce com RabbitMQ.",
+        Description = "API para sistema de processamento de pedidos de e-commerce com MassTransit/RabbitMQ.",
         Contact = new OpenApiContact
         {
             Name = "Pedro Lucas Dev",
@@ -37,12 +37,27 @@ builder.Services.Configure<JsonOptions>(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Configuração do RabbitMQ
-builder.Services.Configure<RabbitMqSettings>(
-    builder.Configuration.GetSection("RabbitMQ"));
+// Configuração do MassTransit com RabbitMQ
+// Desabilitado quando DISABLE_MASSTRANSIT=true (usado em testes de integração)
+if (!string.Equals(builder.Configuration["DISABLE_MASSTRANSIT"], "true", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddMassTransit(config =>
+    {
+        config.UsingRabbitMq((context, cfg) =>
+        {
+            var rabbitConfig = builder.Configuration.GetSection("RabbitMQ");
+            
+            cfg.Host(rabbitConfig["HostName"] ?? "localhost", "/", h =>
+            {
+                h.Username(rabbitConfig["UserName"] ?? "guest");
+                h.Password(rabbitConfig["Password"] ?? "guest");
+            });
+        });
+    });
 
-// Registra o Publisher como Singleton (reutiliza conexão)
-builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+    // MassTransit 7.x requer registro explícito do HostedService para iniciar o bus
+    builder.Services.AddMassTransitHostedService(true);
+}
 
 builder.Services.AddValidatorsFromAssemblyContaining<CreateOrderRequestValidator>();
 

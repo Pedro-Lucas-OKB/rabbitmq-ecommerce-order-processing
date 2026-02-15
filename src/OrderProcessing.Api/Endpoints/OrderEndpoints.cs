@@ -1,10 +1,11 @@
 using FluentValidation;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OrderProcessing.Core.DTOs;
 using OrderProcessing.Core.Entities;
 using OrderProcessing.Core.Enums;
+using OrderProcessing.Core.Messages;
 using OrderProcessing.Infrastructure.Data;
-using OrderProcessing.Infrastructure.Messaging;
 
 namespace OrderProcessing.Api.Endpoints;
 
@@ -24,7 +25,7 @@ public static class OrderEndpoints
         CreateOrderRequest request,
         IValidator<CreateOrderRequest> validator,
         AppDbContext context,
-        IRabbitMqPublisher publisher,
+        IPublishEndpoint publisher,
         ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger("OrderEndpoints");
@@ -60,7 +61,7 @@ public static class OrderEndpoints
         await context.Orders.AddAsync(order);
         await context.SaveChangesAsync();
 
-        await publisher.PublishOrderCreatedAsync(order);
+        await publisher.Publish(new OrderCreated { OrderId = order.Id });
         
         logger.LogInformation("Pedido {OrderId} criado com sucesso.", order.Id);
         

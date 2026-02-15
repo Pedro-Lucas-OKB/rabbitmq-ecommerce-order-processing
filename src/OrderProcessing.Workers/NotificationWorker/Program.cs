@@ -1,18 +1,40 @@
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
-using NotificationWorker;
+using NotificationWorker.Consumers;
 using OrderProcessing.Infrastructure.Data;
-using OrderProcessing.Infrastructure.Messaging;
 
 var builder = Host.CreateApplicationBuilder(args);
 
+// Configuração do DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Configuração do RabbitMQ
-builder.Services.Configure<RabbitMqSettings>(
-    builder.Configuration.GetSection("RabbitMQ"));
+// Configuração do MassTransit com RabbitMQ
+builder.Services.AddMassTransit(x =>
+{
+    // Registra o consumer
+    x.AddConsumer<InventoryReservedConsumer>();
 
-builder.Services.AddHostedService<Worker>();
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitConfig = builder.Configuration.GetSection("RabbitMQ");
+        
+        cfg.Host(rabbitConfig["HostName"], "/", h =>
+        {
+            h.Username(rabbitConfig["UserName"] ?? "guest");
+            h.Password(rabbitConfig["Password"] ?? "guest");
+        });
+
+        // Configura o endpoint para o consumer
+        cfg.ReceiveEndpoint("notification-queue", e =>
+        {
+            e.ConfigureConsumer<InventoryReservedConsumer>(context);
+        });
+    });
+});
+
+// MassTransit 7.x requer registro explícito do HostedService para iniciar o bus
+builder.Services.AddMassTransitHostedService(true);
 
 var host = builder.Build();
 host.Run();
