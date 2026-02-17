@@ -1,0 +1,128 @@
+{
+  "name": "E-Commerce Order Processing",
+  "version": "1",
+  "items": [
+    {
+      "type": "http",
+      "name": "Create Order",
+      "filename": "Create Order.bru",
+      "seq": 1,
+      "settings": {
+        "encodeUrl": true,
+        "timeout": 0
+      },
+      "tags": [],
+      "examples": [],
+      "request": {
+        "url": "https://localhost:7167/api/orders",
+        "method": "POST",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"customerName\": \"{{$randomFullName}}\",\n  \"customerEmail\": \"{{$randomEmail}}\",\n  \"items\": [\n    {\n      \"productName\": \"Camiseta Azul\",\n      \"productSku\": \"CAM-001\",\n      \"quantity\": 3,\n      \"unitPrice\": 29.90\n    },\n    {\n      \"productName\": \"Calça Preta\",\n      \"productSku\": \"CAL-003\",\n      \"quantity\": 2,\n      \"unitPrice\": 89.90\n    }\n  ]\n}",
+          "formUrlEncoded": [],
+          "multipartForm": [],
+          "file": []
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "inherit"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "Get All Orders",
+      "filename": "Get All Orders.bru",
+      "seq": 3,
+      "settings": {
+        "encodeUrl": true,
+        "timeout": 0
+      },
+      "tags": [],
+      "examples": [],
+      "request": {
+        "url": "https://localhost:7167/api/orders",
+        "method": "GET",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "",
+          "formUrlEncoded": [],
+          "multipartForm": [],
+          "file": []
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "inherit"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "Get Order By Id",
+      "filename": "Get Order By Id.bru",
+      "seq": 4,
+      "settings": {
+        "encodeUrl": true,
+        "timeout": 0
+      },
+      "tags": [],
+      "examples": [],
+      "request": {
+        "url": "https://localhost:7167/api/orders/{{id}}",
+        "method": "GET",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "",
+          "formUrlEncoded": [],
+          "multipartForm": [],
+          "file": []
+        },
+        "script": {},
+        "vars": {
+          "req": [
+            {
+              "name": "id",
+              "value": "c27a3073-811f-4df7-adb0-b83d650bbe63",
+              "enabled": true,
+              "local": false
+            }
+          ]
+        },
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "inherit"
+        }
+      }
+    }
+  ],
+  "environments": [],
+  "brunoConfig": {
+    "version": "1",
+    "name": "E-Commerce Order Processing",
+    "type": "collection",
+    "ignore": [
+      "node_modules",
+      ".git"
+    ],
+    "size": 0.000720977783203125,
+    "filesCount": 2
+  },
+  "exportedAt": "2026-02-17T20:39:13.392Z",
+  "exportedUsing": "Bruno/3.0.2"
+}
