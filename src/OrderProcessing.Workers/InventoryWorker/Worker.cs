@@ -120,6 +120,17 @@ public class Worker : BackgroundService
                 return;
             }
 
+            // Idempotência: verifica se o estoque já foi processado
+            if (order.InventoryStatus != EInventoryStatus.Pending)
+            {
+                _logger.LogInformation(
+                    "Pedido {OrderId} já teve estoque processado (status: {Status}). Ignorando mensagem duplicada...",
+                    order.Id, order.InventoryStatus);
+                await _channel!.BasicAckAsync(ea.DeliveryTag, false, stoppingToken);
+                
+                return;
+            }
+
             // Simulando processamento de estoque
             await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
             

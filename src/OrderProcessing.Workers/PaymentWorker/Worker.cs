@@ -128,6 +128,17 @@ public class Worker : BackgroundService
                 return;
             }
             
+            // Idempotência: verifica se o pagamento já foi processado
+            if (order.PaymentStatus != EPaymentStatus.Pending)
+            {
+                _logger.LogInformation(
+                    "Pedido {OrderId} já teve pagamento processado (status: {Status}). Ignorando mensagem duplicada...",
+                    order.Id, order.PaymentStatus);
+                await _channel!.BasicAckAsync(ea.DeliveryTag, false, stoppingToken);
+                
+                return;
+            }
+            
             // Atualizando os status do pedido
             order.PaymentStatus = EPaymentStatus.Processing;
             order.UpdatedAt = DateTime.UtcNow;
