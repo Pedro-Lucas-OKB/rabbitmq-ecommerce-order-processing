@@ -13,5 +13,6 @@ public class Order
     public EInventoryStatus InventoryStatus { get; set; }
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; set; }
+    public DateTime? NotifiedAt { get; set; }
     public List<OrderItem> Items { get; set; } = [];
 }

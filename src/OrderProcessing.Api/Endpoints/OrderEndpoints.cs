@@ -108,6 +108,7 @@ public static class OrderEndpoints
             order.InventoryStatus.ToString(),
             order.CreatedAt,
             order.UpdatedAt,
+            order.NotifiedAt,
             order.Items.Select(item => new OrderItemResponse(
                 item.Id,
                 item.ProductName,

@@ -19,5 +19,6 @@ public record OrderResponse(
     string InventoryStatus,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
+    DateTime? NotifiedAt,
     List<OrderItemResponse> Items
 );
