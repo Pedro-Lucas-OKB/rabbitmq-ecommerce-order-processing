@@ -120,9 +120,23 @@ public class Worker : BackgroundService
                 return;
             }
 
+            // Idempotência: verifica se o pedido já foi finalizado (não está mais em processamento)
+            if (order.NotifiedAt != null)
+            {
+                _logger.LogWarning(
+                    "Pedido {OrderId} já consta como notificado. Ignorando...",
+                    order.Id);
+                await _channel!.BasicAckAsync(ea.DeliveryTag, false, stoppingToken);
+                
+                return;
+            }
+
             // Simulando envio de e-mail
             _logger.LogInformation("Enviando notificação para email o {CustomerEmail} referente ao pedido {OrderId}", order.CustomerEmail, order.Id);
             await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+            order.NotifiedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync(stoppingToken);
             
             _logger.LogInformation("Notificação via e-mail ENVIADA para o cliente {CustomerEmail}. Pedido {OrderId} - {status}", order.CustomerEmail, order.Id, order.OrderStatus.ToString());
             
